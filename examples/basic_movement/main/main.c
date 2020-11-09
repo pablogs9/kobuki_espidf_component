@@ -54,8 +54,8 @@ void app_main(void)
     kobuki_set_subpayload_callback(kobuki_callback);
     kobuki_set_emergency_callback(kobuki_callback);
     
-    TaskHandle_t xHandle = NULL;
-    xTaskCreate(kobuki_loop, "kobuki_thread", 2000, NULL,  5, &xHandle); 
+    TaskHandle_t kobuki_handle = NULL;
+    xTaskCreate(kobuki_loop, "kobuki_thread", 2000, NULL,  5, &kobuki_handle); 
 
     kobuki_set_speed_command(1.0, 0.0);
     while (1){
