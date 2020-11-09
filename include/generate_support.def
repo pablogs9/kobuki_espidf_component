@@ -1,0 +1,40 @@
+#define TYPE_SUFFIX t
+#define DECODE_PREFIX decode
+#define PRINT_PREFIX print
+
+#define PASTER(x,y) x ## _ ## y
+#define EVALUATOR(x,y)  PASTER(x,y)
+
+#define TO_STRING_LITERAL(s) STRING_EVALUATOR(s)
+#define STRING_EVALUATOR(s) #s
+
+#define TYPE_NAME(x) EVALUATOR(x, TYPE_SUFFIX)
+#define DECODE_NAME(x) EVALUATOR(DECODE_PREFIX, x)
+#define PRINT_NAME(x) EVALUATOR(PRINT_PREFIX, x)
+
+typedef struct {
+    #define X(a,b) uint##b##_t a;
+    ELEMENTS_NAME
+    #undef X
+} TYPE_NAME(NAME);
+
+__attribute__((unused)) static void DECODE_NAME(NAME)(uint8_t * buff, TYPE_NAME(NAME) * msg){
+    size_t offset = 0;
+#ifdef KOBUKI_DEBUG
+    printf("Received and decoding %s\n", TO_STRING_LITERAL(NAME));
+#endif
+#if (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+    #define X(a,b) msg->a = *((uint##b##_t *) kobuki_swap_endianness(&buff[offset], b)); offset += (b/8);
+#else
+    #define X(a,b) msg->a = *((uint##b##_t *) &buff[offset]); offset += (b/8);
+#endif
+        ELEMENTS_NAME
+    #undef X
+}
+
+__attribute__((unused)) static void PRINT_NAME(NAME)(TYPE_NAME(NAME) * msg){
+    printf("Message type: %s\n", TO_STRING_LITERAL(NAME));
+    #define X(a,b) printf("\t%s: %u\n", #a, msg->a);
+        ELEMENTS_NAME
+    #undef X
+}

@@ -1,0 +1,45 @@
+menu "Kobuki Settings"
+
+config KOBUKI_UART_PORT
+    int "ESP32 UART Port"
+    default 1
+    help
+       ESP32 UART Port used for Kobuki communication
+
+config KOBUKI_UART_TXD
+    int "ESP32 UART TxD"
+    default 4
+    help
+        ESP32 UART Port TxD pin
+
+config KOBUKI_UART_RXD
+    int "ESP32 UART RxD"
+    default 5
+    help
+        ESP32 UART RxD pin
+
+config KOBUKI_UART_BUFFER_SIZE
+    int "ESP32 UART Buffer size"
+    default 512
+    help
+        ESP32 UART Buffer size
+
+config KOBUKI_UART_READ_WAIT_MS
+    int "Blocking time for UART read operation (ms)"
+    default 1
+    help
+        Blocking time for UART read operation (ms)
+
+config KOBUKI_RATE_MS
+    int "Sleep period between read/write operations (ms)"
+    default 20
+    help
+        Sleep period between read/write operations (ms)
+
+config KOBUKI_PROCESSING_BUFFER
+    int "Kobuki protocol processing buffer length"
+    default 400
+    help
+        Kobuki protocol processing buffer length
+
+endmenu

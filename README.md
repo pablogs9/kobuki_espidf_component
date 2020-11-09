@@ -2,6 +2,21 @@
 
 This component has been tested in ESP-IDF v4.1 and v4.3
 
+## Example
+
+In order to test a int32_publisher example:
+
+```bash
+. $IDF_PATH/export.sh
+cd examples/basic_movement
+idf.py menuconfig
+# Set your Kobuki configuration
+idf.py build 
+idf.py flash 
+idf.py monitor 
+```
+
+
 ## Purpose of the Project
 
 This software is not ready for production use. It has neither been developed nor
