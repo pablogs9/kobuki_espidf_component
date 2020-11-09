@@ -52,7 +52,7 @@ void app_main(void)
 {
     kobuki_init_serial();
     kobuki_set_subpayload_callback(kobuki_callback);
-    kobuki_set_emergency_callback(kobuki_callback);
+    kobuki_set_emergency_callback(kobuki_emergency);
     
     TaskHandle_t kobuki_handle = NULL;
     xTaskCreate(kobuki_loop, "kobuki_thread", 2000, NULL,  5, &kobuki_handle); 

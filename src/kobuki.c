@@ -80,7 +80,7 @@ typedef struct {
     kobuki_state_machine_t state_machine;
     kobuki_subpayload_callback_t subpayload_callback;
     kobuki_subpayload_callback_t emergency_callback;
-    kobuki_odometry_t odometry;
+    kobuki_status_t robot_status;
     uint8_t base_control_command[KOBUKI_BASE_CONTROL_COMMAND_LEN + KOBUKI_COMMAND_HEADER_LEN];
     uint8_t sound_command[KOBUKI_SOUND_COMMAND_LEN + KOBUKI_COMMAND_HEADER_LEN];
 } kobuki_robot_t;
@@ -110,24 +110,23 @@ bool kobuki_check_crc(){
     return cs ? false : true;
 }
 
-kobuki_odometry_t kobuki_get_odometry(){
-    return robot.odometry;
+kobuki_status_t kobuki_get_status(){
+    return robot.robot_status;
 }
 
 void kobuki_update_odometry(kobuki_basic_sensor_data_t * msg){
-    if (!robot.odometry.init){
-        robot.odometry.last_timestamp = msg->timestamp;
-        robot.odometry.x = 0.0;
-        robot.odometry.y = 0.0;
-        robot.odometry.theta = 0.0;
-        robot.odometry.init = true;
+    if (!robot.robot_status.odometry.init){
+        robot.robot_status.odometry.x = 0.0;
+        robot.robot_status.odometry.y = 0.0;
+        robot.robot_status.odometry.theta = 0.0;
+        robot.robot_status.odometry.init = true;
     }else{
-        double elapsed_time_ms = (msg->timestamp > robot.odometry.last_timestamp)  ? 
-                                    msg->timestamp - robot.odometry.last_timestamp :
-                                    msg->timestamp + ((uint16_t)0xFFFF - robot.odometry.last_timestamp);
+        double elapsed_time_ms = (msg->timestamp > robot.robot_status.last_basic_sensor_data.timestamp)  ? 
+                                    msg->timestamp - robot.robot_status.last_basic_sensor_data.timestamp :
+                                    msg->timestamp + ((uint16_t)0xFFFF - robot.robot_status.last_basic_sensor_data.timestamp);
 
-        double dl = KOBUKI_TICKS_PER_METER * (msg->left_encoder - robot.odometry.last_left_encoder);
-        double dr = KOBUKI_TICKS_PER_METER * (msg->right_encoder  -robot.odometry.last_right_encoder);
+        double dl = KOBUKI_TICKS_PER_METER * (msg->left_encoder - robot.robot_status.last_basic_sensor_data.left_encoder);
+        double dr = KOBUKI_TICKS_PER_METER * (msg->right_encoder  - robot.robot_status.last_basic_sensor_data.right_encoder);
         double dx = 0, dy = 0, dtheta = (dr-dl)/KOBUKI_WHEELBASE;
 
         if (dl!=dr) {
@@ -138,21 +137,19 @@ void kobuki_update_odometry(kobuki_basic_sensor_data_t * msg){
             dx = dr;
         }
 
-        double s = sin(robot.odometry.theta), c = cos(robot.odometry.theta);
+        double s = sin(robot.robot_status.odometry.theta), c = cos(robot.robot_status.odometry.theta);
         double diff_x = c * dx - s * dy;
 
-        robot.odometry.lineal_velocity = diff_x / (elapsed_time_ms / 1000.0);
-        robot.odometry.x += diff_x;
-        robot.odometry.y += s * dx + c * dy;
-        robot.odometry.theta += dtheta;
-        robot.odometry.theta = fmod(robot.odometry.theta + 4*M_PI, 2*M_PI);
+        robot.robot_status.odometry.linear_velocity = diff_x / (elapsed_time_ms / 1000.0);
+        robot.robot_status.odometry.x += diff_x;
+        robot.robot_status.odometry.y += s * dx + c * dy;
+        robot.robot_status.odometry.theta += dtheta;
+        robot.robot_status.odometry.theta = fmod(robot.robot_status.odometry.theta + 4*M_PI, 2*M_PI);
         
-        if (robot.odometry.theta > M_PI){
-            robot.odometry.theta -= 2*M_PI;
+        if (robot.robot_status.odometry.theta > M_PI){
+            robot.robot_status.odometry.theta -= 2*M_PI;
         }
     }
-    robot.odometry.last_left_encoder = msg->left_encoder;
-    robot.odometry.last_right_encoder = msg->right_encoder;
 }
 
 bool kobuki_check_emergency_status(kobuki_basic_sensor_data_t * msg){
@@ -178,6 +175,7 @@ void kobuki_process_payload(){
                     if (robot.emergency_callback) { robot.emergency_callback(&submessage); }
                 }
                 kobuki_update_odometry(&submessage.basic_sensor_data);
+                robot.robot_status.last_basic_sensor_data = submessage.basic_sensor_data;
                 break;
             case KOBUKI_DOCKING_IR:
                 decode_kobuki_docking_ir(&robot.state_machine.buffer[robot.state_machine.read_pointer], &submessage.docking_ir);
@@ -205,6 +203,7 @@ void kobuki_process_payload(){
                 break;
             case KOBUKI_UDID_DATA:
                 decode_kobuki_udid_data(&robot.state_machine.buffer[robot.state_machine.read_pointer], &submessage.udid_data);
+                robot.robot_status.hw_id = submessage.udid_data;
                 break;
             case KOBUKI_CONTROLLER_INFO:
                 decode_kobuki_controller_info(&robot.state_machine.buffer[robot.state_machine.read_pointer], &submessage.controller_info);
@@ -355,7 +354,7 @@ uint8_t uart_input_buffer[UART_INPUT_BUFFER_SIZE];
 void kobuki_loop(){
     kobuki_set_speed_command(0.0, 0.0);
     memset(robot.sound_command, 0, sizeof(robot.sound_command));
-    robot.odometry.init = false;
+    robot.robot_status.odometry.init = false;
     while (1)
     {   
         pthread_mutex_lock(&robot_lock);

@@ -261,13 +261,16 @@ typedef struct {
     float x;
     float y;
     float theta;
-    float lineal_velocity;
+    float linear_velocity;
     float angular_velocity;
-    uint16_t last_left_encoder;
-    uint16_t last_right_encoder;
-    uint16_t last_timestamp;
     bool init;
 } kobuki_odometry_t;
+
+typedef struct {
+    kobuki_udid_data_t hw_id;
+    kobuki_odometry_t odometry;
+    kobuki_basic_sensor_data_t last_basic_sensor_data;
+} kobuki_status_t;
 
 typedef struct {
     kobuki_subpayload_type_t type;
@@ -297,5 +300,5 @@ void kobuki_set_subpayload_callback(kobuki_subpayload_callback_t cb);
 void kobuki_set_emergency_callback(kobuki_subpayload_callback_t cb);
 void kobuki_set_speed_command(float translation, float rotation);
 void kobuki_set_sound_command(float frequency, uint8_t duration_ms);
-kobuki_odometry_t kobuki_get_odometry();
+kobuki_status_t kobuki_get_status();
 void kobuki_loop();
