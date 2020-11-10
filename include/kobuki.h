@@ -270,6 +270,7 @@ typedef struct {
     kobuki_udid_data_t hw_id;
     kobuki_odometry_t odometry;
     kobuki_basic_sensor_data_t last_basic_sensor_data;
+    bool emergency;
 } kobuki_status_t;
 
 typedef struct {
@@ -290,6 +291,7 @@ typedef struct {
 } kobuki_subpayload_t;
 
 typedef void (*kobuki_subpayload_callback_t)(kobuki_subpayload_t *);
+typedef void (*kobuki_emergency_callback_t)(kobuki_subpayload_t *, bool);
 
 // **********************************
 // *           KOBUKI API           *
@@ -297,7 +299,7 @@ typedef void (*kobuki_subpayload_callback_t)(kobuki_subpayload_t *);
 
 void kobuki_init_serial();
 void kobuki_set_subpayload_callback(kobuki_subpayload_callback_t cb);
-void kobuki_set_emergency_callback(kobuki_subpayload_callback_t cb);
+void kobuki_set_emergency_callback(kobuki_emergency_callback_t cb);
 void kobuki_set_speed_command(float translation, float rotation);
 void kobuki_set_sound_command(float frequency, uint8_t duration_ms);
 kobuki_status_t kobuki_get_status();

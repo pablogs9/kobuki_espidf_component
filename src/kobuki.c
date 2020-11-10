@@ -79,7 +79,7 @@ typedef struct {
 typedef struct {
     kobuki_state_machine_t state_machine;
     kobuki_subpayload_callback_t subpayload_callback;
-    kobuki_subpayload_callback_t emergency_callback;
+    kobuki_emergency_callback_t emergency_callback;
     kobuki_status_t robot_status;
     uint8_t base_control_command[KOBUKI_BASE_CONTROL_COMMAND_LEN + KOBUKI_COMMAND_HEADER_LEN];
     uint8_t sound_command[KOBUKI_SOUND_COMMAND_LEN + KOBUKI_COMMAND_HEADER_LEN];
@@ -169,10 +169,14 @@ void kobuki_process_payload(){
         switch (submessage.type){
             case KOBUKI_BASIC_SENSOR_DATA:
                 decode_kobuki_basic_sensor_data(&robot.state_machine.buffer[robot.state_machine.read_pointer], &submessage.basic_sensor_data);
-                if (kobuki_check_emergency_status(&submessage.basic_sensor_data)){
+                if (!robot.robot_status.emergency && kobuki_check_emergency_status(&submessage.basic_sensor_data)){
                     uint8_t emergency_stop_command[] = {0x01, 0x04, 0x00, 0x00, 0x00, 0x00}; // Sets all velocities to zero
                     kobuki_write_bytes(emergency_stop_command, sizeof(emergency_stop_command));
-                    if (robot.emergency_callback) { robot.emergency_callback(&submessage); }
+                    robot.robot_status.emergency = true;
+                    if (robot.emergency_callback) { robot.emergency_callback(&submessage, true); }
+                }else if(robot.robot_status.emergency && !kobuki_check_emergency_status(&submessage.basic_sensor_data)){
+                    robot.robot_status.emergency = false;
+                    if (robot.emergency_callback) { robot.emergency_callback(&submessage, false); }
                 }
                 kobuki_update_odometry(&submessage.basic_sensor_data);
                 robot.robot_status.last_basic_sensor_data = submessage.basic_sensor_data;
@@ -253,6 +257,21 @@ void kobuki_state_machine(uint8_t input){
     }
 }
 
+void kobuki_write_packet(uint8_t * packet, uint8_t len){
+    uint8_t header[] = {0xAA, 0x55};
+    kobuki_write_bytes(header, sizeof(header));
+    uint8_t header_len = len - 1;
+    kobuki_write_bytes(&header_len, 1);
+    kobuki_write_bytes(packet, len);
+    
+    uint8_t cs = 0;
+    cs ^= len;
+    for (uint8_t i = 0; i <= len; i++){
+        cs ^= packet[i];
+    }
+    kobuki_write_bytes(&cs, 1);
+}
+
 // **********************************
 // *         KOBUKI COMMANDS        *
 // **********************************
@@ -276,17 +295,17 @@ void kobuki_set_speed_command(float translation, float rotation){
     
     // convert to mm;
     translation *= 1000;
-    float b2 = KOBUKI_WHEELBASE * 500;
+    float b2 = KOBUKI_WHEELBASE * 500.0;
 
-    if (fabs(rotation) < 1e-3 ) {
-        //Pure translation
-        *speed = (int16_t) translation;
-        *radius = 0;
-    } else if (fabs(translation) < 1){
+    if (fabs(translation) < 1){
         //Pure rotation
         *radius = 1;
         *speed =  (int16_t) (rotation * b2);
-    } else {
+    } else if (fabs(rotation) < 1e-3 ) {
+        //Pure translation
+        *speed = (int16_t) translation;
+        *radius = 0;
+    }else {
         //Translation and rotation
         float r = translation/rotation;
         *radius = (int16_t) r;
@@ -304,7 +323,7 @@ void kobuki_set_speed_command(float translation, float rotation){
     pthread_mutex_unlock(&robot_lock);
 
 #ifdef KOBUKI_DEBUG
-    printf("Setting base control to : translation = %0.3f, rotation = %0.3f\n Hex: ",translation, rotation);
+    printf("Setting base control to : translation = %0.3f, rotation = %0.3f speed = %d radius = %d\n Hex: ",translation, rotation, *speed, *radius);
     for (size_t i = 0; i < sizeof(robot.base_control_command); i++){ printf("0x%02X ", robot.base_control_command[i]);}
     printf("\n");
 #endif
@@ -340,7 +359,7 @@ void kobuki_set_subpayload_callback(kobuki_subpayload_callback_t cb){
     robot.subpayload_callback = cb;
 }
 
-void kobuki_set_emergency_callback(kobuki_subpayload_callback_t cb){
+void kobuki_set_emergency_callback(kobuki_emergency_callback_t cb){
     robot.emergency_callback = cb;
 }
 
@@ -358,10 +377,10 @@ void kobuki_loop(){
     while (1)
     {   
         pthread_mutex_lock(&robot_lock);
-        kobuki_write_bytes(robot.base_control_command, sizeof(robot.base_control_command));
+        kobuki_write_packet(robot.base_control_command, sizeof(robot.base_control_command));
 
         if (robot.sound_command[0] != 0){
-            kobuki_write_bytes(robot.sound_command, sizeof(robot.sound_command));
+            kobuki_write_packet(robot.sound_command, sizeof(robot.sound_command));
             memset(robot.sound_command, 0, sizeof(robot.sound_command));
         }
         pthread_mutex_unlock(&robot_lock);

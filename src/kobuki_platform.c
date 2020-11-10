@@ -35,8 +35,4 @@ size_t kobuki_read_bytes(uint8_t * buf, size_t len){
     ESP_ERROR_CHECK(uart_get_buffered_data_len(KOBUKI_UART_PORT, (size_t*)&available_lenght));
     available_lenght = (available_lenght > len) ? len : available_lenght;
     return uart_read_bytes(KOBUKI_UART_PORT, buf, available_lenght, pdMS_TO_TICKS(KOBUKI_UART_READ_WAIT_MS));
-    
-    // uint8_t fake_buff[] = {0xAA, 0x55, 12, 10, 4, 1, 2, 3, 4, 11, 4, 8,8,8,8, 0};
-    // memcpy(buf, fake_buff, sizeof(fake_buff));
-    // return sizeof(fake_buff);
 }

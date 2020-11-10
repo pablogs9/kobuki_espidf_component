@@ -8,13 +8,13 @@ config KOBUKI_UART_PORT
 
 config KOBUKI_UART_TXD
     int "ESP32 UART TxD"
-    default 4
+    default 22
     help
         ESP32 UART Port TxD pin
 
 config KOBUKI_UART_RXD
     int "ESP32 UART RxD"
-    default 5
+    default 23
     help
         ESP32 UART RxD pin
 
